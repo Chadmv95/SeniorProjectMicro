@@ -23,9 +23,10 @@ def bcdDigits(self, chars):
 #returns false upon failure of initialization
 #returns true upon success of initialization
 ##################################################
-def initGPIO(self):
-
-
+def initGPIO(self)
+    PIR_init=pyb.Pin("P3", pyb.Pin.OUT_PP)
+    PowSw_init=pyb.Pin("P4", pyb.Pin.IN, pyb.Pin.PULL_DOWN)
+    return True
 ##################################################
 #TODO implement this function
 #this function initializes all timers
@@ -44,8 +45,11 @@ def initTimers(self):
 #returns true upon success of initialization
 ##################################################
 def initUART(self):
-
-
+    try:
+        uart = UART(1)
+        uart.init(9600, bits = 8, parity = None, stop = 1, timeout_char = 1000)    
+    except ValueError:
+        print("Error: baud rate +- 5% out of range")
 ##################################################
 #TODO implement this function
 #this function initializes I2C protocol
@@ -54,7 +58,7 @@ def initUART(self):
 #returns true upon success of initialization
 ##################################################
 def initI2C(self):
-
+    i2c = I2C(2, I2C.MASTER, baudrate=100000)
 
 ##################################################
 #TODO implement this function
