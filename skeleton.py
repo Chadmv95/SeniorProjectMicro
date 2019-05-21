@@ -1,4 +1,4 @@
-import sensor, image, time, pyb, csv
+import sensor, image, time, pyb, csv, json
 from pyb import LED
 from pyb import UART
 from pyb import I2C
@@ -10,15 +10,20 @@ from pyb import I2C
 pinPIR = null
 pinPowerSwitch = null
 uartObject = null
-strDateTime = null
+strDateTime[] = null
 pinI2C = null
+
+#Configuration variables set to default values
+#TODO: add the rest of the config variables and
+#TODO: set them to their proper default values
+burstCount = 3
 
 
 ##################################################
 # Helper function to convert the RTC input to
 # human readable string
 ##################################################
-def bcdDigits(self, chars):
+def bcdDigits(chars):
     for char in chars:
     #    char = ord(char)
         for val in (char >> 4, char & 0xF):
@@ -34,7 +39,10 @@ def bcdDigits(self, chars):
 #returns false upon failure of initialization
 #returns true upon success of initialization
 ##################################################
-def initGPIO(self):
+def initGPIO():
+    global pinPIR
+    global pinPowerSwitch
+
     pinPIR = pyb.Pin("P3", pyb.Pin.OUT_PP)
     pinPowerSwitch = pyb.Pin("P4", pyb.Pin.IN, pyb.Pin.PULL_DOWN)
     return True
@@ -47,7 +55,7 @@ def initGPIO(self):
 #returns false upon failure of initialization
 #returns true upon success of initialization
 ##################################################
-def initTimers(self):
+def initTimers():
 
 
 ##################################################
@@ -56,7 +64,9 @@ def initTimers(self):
 #returns false upon failure of initialization
 #returns true upon success of initialization
 ##################################################
-def initUART(self):
+def initUART():
+    global uartObject
+
     try:
         #UART(1) uses pins 0 and 1
         uartObject = UART(1) 
@@ -71,13 +81,13 @@ def initUART(self):
 ##################################################
 #TODO implement this function
 #this function initializes I2C protocol
-#
-#returns false upon failure of initialization
-#returns true upon success of initialization
 ##################################################
-def initI2C(self):
+def initI2C():
+    global pinI2C
+
     #2 wire I2C communication, SCL = P4, SDA = P5
     pinI2C = I2C(2, I2C.MASTER, baudrate=100000)
+
 
 ##################################################
 #TODO implement this function
@@ -86,7 +96,7 @@ def initI2C(self):
 #returns false upon failure of initialization
 #returns true upon success of initialization
 ##################################################
-def initInterruptTimer(self):
+def initInterruptTimer():
 
 
 ##################################################
@@ -96,7 +106,7 @@ def initInterruptTimer(self):
 #returns false upon failure of initialization
 #returns true upon success of initialization
 ##################################################
-def initInterruptPIR(self):
+def initInterruptPIR():
 
 
 ##################################################
@@ -106,7 +116,7 @@ def initInterruptPIR(self):
 #returns false upon failure
 #returns true upon success
 ##################################################
-def enterLowPowerMode(self):
+def enterLowPowerMode():
 
 
 ##################################################
@@ -116,7 +126,8 @@ def enterLowPowerMode(self):
 #returns false upon failure
 #returns true upon success
 ##################################################
-def wakeup(self):
+def wakeup():
+
 
 ##################################################
 #this function reads the PIR sensor from GPIO
@@ -124,7 +135,9 @@ def wakeup(self):
 #returns true upon sensing movement
 #returns false upon no movement
 ##################################################
-def readPIR(self):
+def readPIR():
+    global pinPIR
+
     if pinPIR.value() == 1:
         return True
     else:
@@ -138,14 +151,16 @@ def readPIR(self):
 #
 #returns void
 ##################################################
-def writeRTC(self):
-    i2c.mem_write(0x00,0x68,0, timeout=1000)
-    i2c.mem_write(0x04,0x68,1, timeout=1000)
-    i2c.mem_write(0x15,0x68,2, timeout=1000)
-    i2c.mem_write(0x03,0x68,3, timeout=1000)
-    i2c.mem_write(0x17,0x68,4, timeout=1000)
-    i2c.mem_write(0x05,0x68,5, timeout=1000)
-    i2c.mem_write(0x19,0x68,6, timeout=1000)
+def writeRTC():
+    global pinI2C
+
+    pinI2C.mem_write(0x00,0x68,0, timeout=1000)
+    pinI2C.mem_write(0x04,0x68,1, timeout=1000)
+    pinI2C.mem_write(0x15,0x68,2, timeout=1000)
+    pinI2C.mem_write(0x03,0x68,3, timeout=1000)
+    pinI2C.mem_write(0x17,0x68,4, timeout=1000)
+    pinI2C.mem_write(0x05,0x68,5, timeout=1000)
+    pinI2C.mem_write(0x19,0x68,6, timeout=1000)
 
 ##################################################
 #TODO parse strDateTime indexes to make human
@@ -155,16 +170,18 @@ def writeRTC(self):
 #
 #returns a string with the time and date
 ##################################################
-def readRTC(self):
+def readRTC():
+    global strDateTime
+
     for i in range (0,7):
         #read the full data from RTC address
-        readFirst = pinI2C.mem_read(1, 0x68, 0))
+        readFirst = (pinI2C.mem_read(1, 0x68, 0))
         #parse the ones and tens place of the data
-        readParse = ord(readFirst) & 0x0F
+        readParse = (ord(readFirst) & 0x0F)
         strDateTime[i] = "" + readParse + bcdDigits(readFirst)
 
     #form strDateTime into string:
-    # yyyy-month-dd hh-mm-ss (all numbers)
+    # yyyy-MM-dd hh-mm-ss (all numbers)
     # return that^ string
 
 
@@ -176,21 +193,24 @@ def readRTC(self):
 #
 #returns a string with the tag id or a null string
 ##################################################
-def readRFID(self):
+def readRFID():
     return uartObject.read(60)
 
 
 ##################################################
 #TODO implement error checking
 #this function toggles the power to the RFID
-# 
+#
+#returns 1 if it set it to high
+#returns 0 if it set it to low
 ##################################################
-def powerToggleRFID(self):
+def powerToggleRFID():
     if pinPowerSwitch.value() == 1:
         pinPowerSwitch.low()
+        return 0
     else:
         pinPowerSwitch.high()
-
+        return 1
 
 
 
@@ -202,7 +222,7 @@ def powerToggleRFID(self):
 #returns false upon failure of storage of photo
 #returns true upon success of storage of photo
 ##################################################
-def takePhoto(self):
+def takePhoto():
 
 
 ##################################################
@@ -217,47 +237,57 @@ def takePhoto(self):
 #returns false upon file edit failure
 #returns true upon file edit success
 ##################################################
-def addRowToCSV(self, dateTime, tagID, photoCount):
+def addRowToCSV(dateTime, tagID, photoCount):
     fields=[dateTime, tagID, photoCount]
-    with open('./tagData.csv', 'a') as fd:
-        fd.writerow(fields)
+    with open('./tagData.csv', 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(fields)
+
+    return True
 
 
 ##################################################
 #TODO implement this function
 #this function enables the GPIO interrupt
 ##################################################
-def enableInterruptGPIO(self):
+def enableInterruptGPIO():
 
 
 ##################################################
 #TODO implement this function
 #this function disables the GPIO interrupt
 ##################################################
-def disableInterruptGPIO(self):
+def disableInterruptGPIO():
 
 
 ##################################################
 #TODO implement this function
 #this function enables the timer interrupt
 ##################################################
-def enableInterruptTimer(self):
+def enableInterruptTimer():
 
 
 ##################################################
 #TODO implement this function
 #this function disables the timer interrupt
 ##################################################
-def disableInterruptTimer(self):
+def disableInterruptTimer():
 
 
 ##################################################
-#TODO implement this function
+#TODO complete setting global variables
+#TODO add error checking
 #this function reads the JSON file from the SD
 #card and sets the values read to local variables
 #
 #returns false upon unsuccessful read
 #returns true upon successful read
 ##################################################
-def readJSON(self):
+def readJSON():
+    fileJSON = './configuration.json'
+    global burstCount
 
+    with open(fileJSON, 'r') as f:
+        readData = json.load(f)
+
+    burstCount = readData["burstCount"]
