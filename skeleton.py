@@ -1,4 +1,4 @@
-import sensor, image, time, pyb
+import sensor, image, time, pyb, csv
 from pyb import LED
 from pyb import UART
 from pyb import I2C
@@ -152,7 +152,8 @@ def takePhoto(self):
 
 
 ##################################################
-#TODO implement this function
+#TODO test this function against tagData.csv
+#TODO add error checking
 #this function adds a row to the CSV file based on
 #the input parameters given
 #
@@ -163,6 +164,9 @@ def takePhoto(self):
 #returns true upon file edit success
 ##################################################
 def addRowToCSV(self, dateTime, tagID, photoCount):
+    fields=[dateTime, tagID, photoCount]
+    with open('./tagData.csv', 'a') as fd:
+        fd.writerow(fields)
 
 
 ##################################################
