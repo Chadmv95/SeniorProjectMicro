@@ -33,6 +33,16 @@ def bcdDigits(chars):
 
 
 ##################################################
+#TODO set camera pixel format and frame size
+#initializes camera to the correct settings
+##################################################
+def initCameraSensor():
+    sensor.reset()                      # Reset and initialize the sensor.
+    sensor.set_pixformat(sensor.RGB565) # Set pixel format to RGB565 (or GRAYSCALE)
+    sensor.set_framesize(sensor.QVGA)   # Set frame size to QVGA (320x240)
+    sensor.skip_frames(time=2000)       # Wait for settings take effect.
+
+##################################################
 #TODO implement error checking
 #this function initializes all GPIO
 #
@@ -70,7 +80,7 @@ def initUART():
     try:
         #UART(1) uses pins 0 and 1
         uartObject = UART(1) 
-        uartObject.init(9600, bits = 8, parity = None, stop = 1, timeout_char = 1000)    
+        uartObject.init(9600, bits = 8, parity = None, stop = 1, timeout_char = 1000)
     except ValueError:
         # print("Error: baud rate +- 5% out of range")
         return False
@@ -79,8 +89,11 @@ def initUART():
 
 
 ##################################################
-#TODO implement this function
+#TODO add error checking for failure
 #this function initializes I2C protocol
+#
+#returns false upon failure
+#returns true upon success
 ##################################################
 def initI2C():
     global pinI2C
@@ -110,23 +123,16 @@ def initInterruptPIR():
 
 
 ##################################################
-#TODO implement this function
-#this function enters the microcontroller into low power mode
+#TODO verify functionality
+#this function enters the microcontroller into
+# low power mode
 #
 #returns false upon failure
 #returns true upon success
 ##################################################
 def enterLowPowerMode():
-
-
-##################################################
-#TODO implement this function
-#this function wakes the microcontroller up from sleep
-#
-#returns false upon failure
-#returns true upon success
-##################################################
-def wakeup():
+    #must configure wakeup sources first
+    machine.deepsleep()
 
 
 ##################################################
@@ -148,8 +154,6 @@ def readPIR():
 #TODO hardcode actual time/date
 #this function writes the time to the PIR sensor
 #hard code time/date values
-#
-#returns void
 ##################################################
 def writeRTC():
     global pinI2C
@@ -163,26 +167,25 @@ def writeRTC():
     pinI2C.mem_write(0x19,0x68,6, timeout=1000)
 
 ##################################################
-#TODO parse strDateTime indexes to make human
-# sense
+#TODO test functionality
 #this function reads the real time clock for the
-#current time of day and the date
-#
-#returns a string with the time and date
+#current time of day and the date and sets the
+#global variable
 ##################################################
 def readRTC():
     global strDateTime
+    arrDateTime = []
 
     for i in range (0,7):
         #read the full data from RTC address
         readFirst = (pinI2C.mem_read(1, 0x68, 0))
+
         #parse the ones and tens place of the data
         readParse = (ord(readFirst) & 0x0F)
-        strDateTime[i] = "" + readParse + bcdDigits(readFirst)
+        arrDateTime[6-i] = "" + readParse + bcdDigits(readFirst)
 
-    #form strDateTime into string:
-    # yyyy-MM-dd hh-mm-ss (all numbers)
-    # return that^ string
+        # yy-MM-dd hh-mm-ss (all numbers)
+        strDateTime += ("" + arrDateTime[6-i])
 
 
 ##################################################
@@ -213,9 +216,8 @@ def powerToggleRFID():
         return 1
 
 
-
 ##################################################
-#TODO implement this function
+#TODO implement error checking and saving to flash
 #this function takes one image from the camera and
 #saves it to the SD card memory in the micro
 #
@@ -223,6 +225,8 @@ def powerToggleRFID():
 #returns true upon success of storage of photo
 ##################################################
 def takePhoto():
+    img = sensor.snapshot()  # Take a picture and return the image.
+    #TODO save img to filesystem
 
 
 ##################################################
@@ -245,6 +249,10 @@ def addRowToCSV(dateTime, tagID, photoCount):
 
     return True
 
+########################################################################################################################
+#####################TODO            FOR HELP WITH INTERRUPTS:           ###############################################
+#####################TODO https://docs.openmv.io/library/pyb.ExtInt.html ###############################################
+########################################################################################################################
 
 ##################################################
 #TODO implement this function
