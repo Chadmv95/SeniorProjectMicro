@@ -10,7 +10,7 @@ from pyb import I2C
 class BCD:
     def bcdDigits(self, chars):
         for char in chars:
-#            char = ord(char)
+        #    char = ord(char)
             for val in (char >> 4, char & 0xF):
                 if val==0xF:
                     return
@@ -23,7 +23,7 @@ try:
     uart.init(9600, bits=8, parity=None, stop=1, timeout_char=1000)
     print(uart)
 except ValueError:
-    print("error: baud rate +- 5% out of range")
+    print("error: baud rate +- 5'%' out of range")
 
 #i2c=I2C(2, I2C.MASTER)
 #i2c.init(I2C.MASTER, baudrate=100000)

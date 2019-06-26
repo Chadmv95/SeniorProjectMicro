@@ -2,21 +2,22 @@ import sensor, image, time, pyb, csv, json
 from pyb import LED
 from pyb import UART
 from pyb import I2C
-
+from time import sleep
 
 ##################################################
 # Global Variables
 ##################################################
-pinPIR = null
-pinPowerSwitch = null
-uartObject = null
-strDateTime[] = null
-pinI2C = null
+global pinPIR
+global pinPowerSwitch
+global uartObject
+global strDateTime
+global pinI2C
 
 #Configuration variables set to default values
 #TODO: add the rest of the config variables and
 #TODO: set them to their proper default values
 burstCount = 3
+
 
 
 ##################################################
@@ -66,7 +67,7 @@ def initGPIO():
 #returns true upon success of initialization
 ##################################################
 def initTimers():
-
+    return
 
 ##################################################
 #this function initializes UART protocol
@@ -101,6 +102,8 @@ def initI2C():
     #2 wire I2C communication, SCL = P4, SDA = P5
     pinI2C = I2C(2, I2C.MASTER, baudrate=100000)
 
+    return
+
 
 ##################################################
 #TODO implement this function
@@ -110,7 +113,7 @@ def initI2C():
 #returns true upon success of initialization
 ##################################################
 def initInterruptTimer():
-
+    return
 
 ##################################################
 #TODO implement this function
@@ -120,7 +123,7 @@ def initInterruptTimer():
 #returns true upon success of initialization
 ##################################################
 def initInterruptPIR():
-
+    return
 
 ##################################################
 #TODO verify functionality
@@ -133,6 +136,7 @@ def initInterruptPIR():
 def enterLowPowerMode():
     #must configure wakeup sources first
     machine.deepsleep()
+    return
 
 
 ##################################################
@@ -148,6 +152,7 @@ def readPIR():
         return True
     else:
         return False
+    return
         
 
 ##################################################
@@ -165,6 +170,7 @@ def writeRTC():
     pinI2C.mem_write(0x17,0x68,4, timeout=1000)
     pinI2C.mem_write(0x05,0x68,5, timeout=1000)
     pinI2C.mem_write(0x19,0x68,6, timeout=1000)
+    return
 
 ##################################################
 #TODO test functionality
@@ -186,6 +192,8 @@ def readRTC():
 
         # yy-MM-dd hh-mm-ss (all numbers)
         strDateTime += ("" + arrDateTime[6-i])
+
+    return
 
 
 ##################################################
@@ -227,6 +235,7 @@ def powerToggleRFID():
 def takePhoto():
     img = sensor.snapshot()  # Take a picture and return the image.
     #TODO save img to filesystem
+    return
 
 
 ##################################################
@@ -259,28 +268,28 @@ def addRowToCSV(dateTime, tagID, photoCount):
 #this function enables the GPIO interrupt
 ##################################################
 def enableInterruptGPIO():
-
+    return
 
 ##################################################
 #TODO implement this function
 #this function disables the GPIO interrupt
 ##################################################
 def disableInterruptGPIO():
-
+    return
 
 ##################################################
 #TODO implement this function
 #this function enables the timer interrupt
 ##################################################
 def enableInterruptTimer():
-
+    return
 
 ##################################################
 #TODO implement this function
 #this function disables the timer interrupt
 ##################################################
 def disableInterruptTimer():
-
+    return
 
 ##################################################
 #TODO complete setting global variables
@@ -299,3 +308,31 @@ def readJSON():
         readData = json.load(f)
 
     burstCount = readData["burstCount"]
+
+    return
+
+if __name__ == "__main__":
+
+    #initialize everything
+    initCameraSensor()
+    initGPIO()
+    initI2C()
+    initInterruptPIR()
+    initInterruptTimer()
+    initTimers()
+    initUART()
+
+    #read config file and set parameters
+    readJSON()
+
+    #enable interrupt for GPIO
+    enableInterruptGPIO()
+
+    #enter low power mode
+    enterLowPowerMode()
+
+    #this while loop just has the system wait so the
+    #program does not terminate while it waits for the
+    #interrupt to occur from the IR sensor
+    while(1):
+        sleep(1.00)
