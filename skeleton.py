@@ -10,14 +10,17 @@ from time import sleep
 global pinPIR
 global pinPowerSwitch
 global uartObject
-global strDateTime
+global arrDateTime
 global pinI2C
-
+global RTC
+global totalPhotoCount = 0
 #Configuration variables set to default values
-#TODO: add the rest of the config variables and
-#TODO: set them to their proper default values
-burstCount = 3
-
+global burstCount = 3
+global burstTime = 1
+global powerSaverTimeout = 3600
+global triggerInterval = 1200
+global name = "PIT Tracker #1"
+global location = "Michigan"
 
 
 ##################################################
@@ -34,37 +37,38 @@ def bcdDigits(chars):
 
 
 ##################################################
-#TODO set camera pixel format and frame size
 #initializes camera to the correct settings
+#every time it comes out of stop mode, invoke this
 ##################################################
 def initCameraSensor():
-    sensor.reset()                      # Reset and initialize the sensor.
-    sensor.set_pixformat(sensor.RGB565) # Set pixel format to RGB565 (or GRAYSCALE)
-    sensor.set_framesize(sensor.QVGA)   # Set frame size to QVGA (320x240)
-    sensor.skip_frames(time=2000)       # Wait for settings take effect.
+    sensor.reset()                         # Reset and initialize the sensor
+    sensor.set_pixformat(sensor.GRAYSCALE) # Set pixel format to b/w 8-bit
+    sensor.set_framesize(sensor.VGA)       # Set frame size to 640x480
+    sensor.skip_frames()                   # Wait for settings 300ms
+
 
 ##################################################
-#TODO implement error checking
 #this function initializes all GPIO
+#it also configures the PIR pin as an interrupt
 #
-#returns false upon failure of initialization
-#returns true upon success of initialization
+# returns void
 ##################################################
 def initGPIO():
     global pinPIR
     global pinPowerSwitch
 
-    pinPIR = pyb.Pin("P3", pyb.Pin.OUT_PP)
-    pinPowerSwitch = pyb.Pin("P4", pyb.Pin.IN, pyb.Pin.PULL_DOWN)
-    return True
+    pinPIR = pyb.ExtInt("P3",
+                        pyb.ExtInt.IRQ_RISING,
+                        pyb.Pin.PULL_DOWN,
+                        callback=handlePIR)
+    pinPowerSwitch = pyb.Pin("P6", pyb.Pin.OUT_PP)
 
 
 ##################################################
 #TODO implement this function
 #this function initializes all timers
 #
-#returns false upon failure of initialization
-#returns true upon success of initialization
+#returns void
 ##################################################
 def initTimers():
     return
@@ -77,7 +81,6 @@ def initTimers():
 ##################################################
 def initUART():
     global uartObject
-
     try:
         #UART(1) uses pins 0 and 1
         uartObject = UART(1) 
@@ -85,7 +88,6 @@ def initUART():
     except ValueError:
         # print("Error: baud rate +- 5% out of range")
         return False
-    
     return True
 
 
@@ -116,26 +118,14 @@ def initInterruptTimer():
     return
 
 ##################################################
-#TODO implement this function
-#this function initializes interrupt for the UART
-#
-#returns false upon failure of initialization
-#returns true upon success of initialization
-##################################################
-def initInterruptPIR():
-    return
-
-##################################################
-#TODO verify functionality
 #this function enters the microcontroller into
 # low power mode
 #
-#returns false upon failure
-#returns true upon success
+#returns void
 ##################################################
 def enterLowPowerMode():
     #must configure wakeup sources first
-    machine.deepsleep()
+    pyb.stop()
     return
 
 
@@ -150,9 +140,8 @@ def readPIR():
 
     if pinPIR.value() == 1:
         return True
-    else:
-        return False
-    return
+    
+    return False
         
 
 ##################################################
@@ -170,7 +159,7 @@ def writeRTC():
     pinI2C.mem_write(0x17,0x68,4, timeout=1000)
     pinI2C.mem_write(0x05,0x68,5, timeout=1000)
     pinI2C.mem_write(0x19,0x68,6, timeout=1000)
-    return
+
 
 ##################################################
 #TODO test functionality
@@ -179,8 +168,7 @@ def writeRTC():
 #global variable
 ##################################################
 def readRTC():
-    global strDateTime
-    arrDateTime = []
+    global arrDateTime = []
 
     for i in range (0,7):
         #read the full data from RTC address
@@ -193,7 +181,14 @@ def readRTC():
         # yy-MM-dd hh-mm-ss (all numbers)
         strDateTime += ("" + arrDateTime[6-i])
 
-    return
+
+##################################################
+#TODO figure out the format of the return string
+#this function reads the real time clock on the
+#actual board and returns a string for the time
+##################################################
+def readTime():
+    return RTC.datetime()
 
 
 ##################################################
@@ -229,13 +224,10 @@ def powerToggleRFID():
 #this function takes one image from the camera and
 #saves it to the SD card memory in the micro
 #
-#returns false upon failure of storage of photo
-#returns true upon success of storage of photo
+#returns void
 ##################################################
-def takePhoto():
-    img = sensor.snapshot()  # Take a picture and return the image.
-    #TODO save img to filesystem
-    return
+def takePhoto(filename):
+    sensor.snapshot().save(filename)
 
 
 ##################################################
@@ -252,30 +244,24 @@ def takePhoto():
 ##################################################
 def addRowToCSV(dateTime, tagID, photoCount):
     fields=[dateTime, tagID, photoCount]
-    with open('./tagData.csv', 'a') as f:
+    with open('/timestamps.csv', 'a') as f:
         writer = csv.writer(f)
         writer.writerow(fields)
 
     return True
 
-########################################################################################################################
-#####################TODO            FOR HELP WITH INTERRUPTS:           ###############################################
-#####################TODO https://docs.openmv.io/library/pyb.ExtInt.html ###############################################
-########################################################################################################################
 
 ##################################################
-#TODO implement this function
-#this function enables the GPIO interrupt
+#this function enables the PIR interrupt
 ##################################################
-def enableInterruptGPIO():
-    return
+def enableInterruptPIR():
+    pinPIR.ExtInt.enable()
 
 ##################################################
-#TODO implement this function
-#this function disables the GPIO interrupt
+#this function disables the PIR interrupt
 ##################################################
-def disableInterruptGPIO():
-    return
+def disableInterruptPIR():
+    pinPIR.ExtInt.disable()
 
 ##################################################
 #TODO implement this function
@@ -291,6 +277,23 @@ def enableInterruptTimer():
 def disableInterruptTimer():
     return
 
+
+##################################################
+#this function enables the RTC interrupt
+#
+#param wakeTime milliseconds to trigger interrupt
+##################################################
+def enableInterruptRTC( wakeTime ):
+    RTC.wakeup(wakeTime, callback=handleRTC)
+
+
+##################################################
+#this function disables the RTC interrupt
+##################################################
+def disableInterruptRTC():
+    enableInterruptRTC(None)
+
+
 ##################################################
 #TODO complete setting global variables
 #TODO add error checking
@@ -301,26 +304,98 @@ def disableInterruptTimer():
 #returns true upon successful read
 ##################################################
 def readJSON():
-    fileJSON = './configuration.json'
+    fileJSON = '/configuration.json'
     global burstCount
 
     with open(fileJSON, 'r') as f:
         readData = json.load(f)
 
-    burstCount = readData["burstCount"]
+    burstCount = readData["Burst Count"]
+    burstTime = readData["Burst Time"]
+    powerSaverTimeout = readData["Power Saver Timeout"]
+    triggerInterval = readData["Trigger Interval"]
+    name = readData["Name"]
+    location = readData["Location"]
 
+
+##################################################
+#this function handles the RTC interrupt
+#it loops and stuff yay!
+##################################################
+def handleRTC()
+    takePhoto("/Photos/" + timestamp + "/" + timestamp + "_" + photoNum+1)
+    totalPhotoCount += 1
+
+##################################################
+#this function handles the PIR interrupt
+#it loops and stuff yay!
+##################################################
+def handlePIR()
+    readAgain = True
+    tagID = 0
+    num_loops = 0
+    photoNum = 0
+
+    disableInterruptPIR()
+
+    timestamp = RTC.datetime()
+
+    initCameraSensor()
+    takePhoto("/Photos/" + timestamp + "/" + timestamp + "_" + 0)
+
+    #we have read the tag, don't care if it didn't work
+    #start taking photos, we can read later
+    enableInterruptRTC(burstTime*1000)
+
+    #spend the first 3 seconds reading
+    while(readAgain and num_loops < 30):
+        tagID = readRFID()
+        if tagID == "1?":
+            readAgain = True
+        else:
+            readAgain = False
+        sleep(0.1)
+        num_loops += 1
+
+    #TODO come back to this. instead of doing a no-op
+    #TODO in the while loop, optimize the power
+    #TODO consumption of tag reading and read the tag
+    #TODO as we wait for the photocount to be reached
+    while totalPhotoCount < photoCount:
+        pass
+
+    #add the data we collected
+    addRowToCSV(timestamp, tagID, totalPhotoCount)
+
+    #cleanup and get ready to go back to low power mode
+    disableInterruptRTC()
+    enableInterruptPIR()
+    enterLowPowerMode()
     return
+
 
 if __name__ == "__main__":
 
     #initialize everything
+    # TODO Check for errors
     initCameraSensor()
     initGPIO()
     initI2C()
-    initInterruptPIR()
     initInterruptTimer()
     initTimers()
     initUART()
+
+    #read the time from the timer and store it on the micro
+    #TODO verify the date/time params to datetime function
+    readRTC()
+    RTC.datetime(arrDateTime[0],
+                arrDateTime[1],
+                arrDateTime[2],
+                arrDateTime[3],
+                arrDateTime[4],
+                arrDateTime[5],
+                arrDateTime[6],
+                0)
 
     #read config file and set parameters
     readJSON()
