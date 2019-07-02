@@ -1,4 +1,4 @@
-import sensor, image, time, pyb, csv, json
+import sensor, image, time, pyb, ujson
 from pyb import LED
 from pyb import UART
 from pyb import I2C
@@ -12,19 +12,19 @@ global pinPowerSwitch
 global uartObject
 global arrDateTime
 global pinI2C
-global RTC
-global totalPhotoCount = 0
+global rtc
+global totalPhotoCount
 #Configuration variables set to default values
-global burstCount = 3
-global burstTime = 1
-global powerSaverTimeout = 3600
-global triggerInterval = 1200
-global name = "PIT Tracker #1"
-global location = "Michigan"
+global burstCount
+global burstTime
+global powerSaverTimeout
+global triggerInterval
+global name
+global location
 
 
 ##################################################
-# Helper function to convert the RTC input to
+# Helper function to convert the rtc input to
 # human readable string
 ##################################################
 def bcdDigits(chars):
@@ -83,7 +83,7 @@ def initUART():
     global uartObject
     try:
         #UART(1) uses pins 0 and 1
-        uartObject = UART(1) 
+        uartObject = UART(1)
         uartObject.init(9600, bits = 8, parity = None, stop = 1, timeout_char = 1000)
     except ValueError:
         # print("Error: baud rate +- 5% out of range")
@@ -140,9 +140,9 @@ def readPIR():
 
     if pinPIR.value() == 1:
         return True
-    
+
     return False
-        
+
 
 ##################################################
 #TODO hardcode actual time/date
@@ -168,7 +168,7 @@ def writeRTC():
 #global variable
 ##################################################
 def readRTC():
-    global arrDateTime = []
+    strDateTime = ""
 
     for i in range (0,7):
         #read the full data from RTC address
@@ -176,10 +176,10 @@ def readRTC():
 
         #parse the ones and tens place of the data
         readParse = (ord(readFirst) & 0x0F)
-        arrDateTime[6-i] = "" + readParse + bcdDigits(readFirst)
+        arrDateTime[6-i] = "" + str(readParse) + str(bcdDigits(readFirst))
 
         # yy-MM-dd hh-mm-ss (all numbers)
-        strDateTime += ("" + arrDateTime[6-i])
+        strDateTime += ("" + str(arrDateTime[6-i]) )
 
 
 ##################################################
@@ -188,7 +188,7 @@ def readRTC():
 #actual board and returns a string for the time
 ##################################################
 def readTime():
-    return RTC.datetime()
+    return rtc.datetime()
 
 
 ##################################################
@@ -244,7 +244,7 @@ def takePhoto(filename):
 ##################################################
 def addRowToCSV(dateTime, tagID, photoCount):
     fields=[dateTime, tagID, photoCount]
-    with open('/timestamps.csv', 'a') as f:
+    with open('timestamps.csv', 'a') as f:
         writer = csv.writer(f)
         writer.writerow(fields)
 
@@ -255,13 +255,13 @@ def addRowToCSV(dateTime, tagID, photoCount):
 #this function enables the PIR interrupt
 ##################################################
 def enableInterruptPIR():
-    pinPIR.ExtInt.enable()
+    pinPIR.enable()
 
 ##################################################
 #this function disables the PIR interrupt
 ##################################################
 def disableInterruptPIR():
-    pinPIR.ExtInt.disable()
+    pinPIR.disable()
 
 ##################################################
 #TODO implement this function
@@ -284,7 +284,7 @@ def disableInterruptTimer():
 #param wakeTime milliseconds to trigger interrupt
 ##################################################
 def enableInterruptRTC( wakeTime ):
-    RTC.wakeup(wakeTime, callback=handleRTC)
+    rtc.wakeup(wakeTime, handleRTC)
 
 
 ##################################################
@@ -304,11 +304,16 @@ def disableInterruptRTC():
 #returns true upon successful read
 ##################################################
 def readJSON():
-    fileJSON = '/configuration.json'
+    fileJSON = 'configuration.json'
     global burstCount
+    global burstTime
+    global powerSaverTimeout
+    global triggerInterval
+    global name
+    global location
 
     with open(fileJSON, 'r') as f:
-        readData = json.load(f)
+        readData = ujson.load(f)
 
     burstCount = readData["Burst Count"]
     burstTime = readData["Burst Time"]
@@ -322,15 +327,18 @@ def readJSON():
 #this function handles the RTC interrupt
 #it loops and stuff yay!
 ##################################################
-def handleRTC()
-    takePhoto("/Photos/" + timestamp + "/" + timestamp + "_" + photoNum+1)
+def handleRTC():
+    photoName = "/Photos/" + timestamp + "/" + timestamp + "_" + photoNum+1
+    takePhoto(photoName)
     totalPhotoCount += 1
 
 ##################################################
 #this function handles the PIR interrupt
 #it loops and stuff yay!
 ##################################################
-def handlePIR()
+def handlePIR():
+    print("IM SO TRIGGERED")
+    global totalPhotoCount
     readAgain = True
     tagID = 0
     num_loops = 0
@@ -338,7 +346,7 @@ def handlePIR()
 
     disableInterruptPIR()
 
-    timestamp = RTC.datetime()
+    timestamp = rtc.datetime()
 
     initCameraSensor()
     takePhoto("/Photos/" + timestamp + "/" + timestamp + "_" + 0)
@@ -376,6 +384,23 @@ def handlePIR()
 
 if __name__ == "__main__":
 
+    #Configuration variables set to default values
+    pinPIR = None
+    pinPowerSwitch = None
+    uartObject = None
+    arrDateTime = None
+    pinI2C = None
+    rtc = pyb.RTC()
+
+    totalPhotoCount = 0
+    burstCount = 3
+    burstTime = 1
+    powerSaverTimeout = 3600
+    triggerInterval = 1200
+    name = "PIT Tracker #1"
+    location = "Michigan"
+    arrDateTime = [8]*7
+
     #initialize everything
     # TODO Check for errors
     initCameraSensor()
@@ -388,26 +413,29 @@ if __name__ == "__main__":
     #read the time from the timer and store it on the micro
     #TODO verify the date/time params to datetime function
     readRTC()
-    RTC.datetime(arrDateTime[0],
-                arrDateTime[1],
-                arrDateTime[2],
-                arrDateTime[3],
-                arrDateTime[4],
-                arrDateTime[5],
-                arrDateTime[6],
-                0)
+    rtc.datetime((int(arrDateTime[0]),
+                int(arrDateTime[1]),
+                int(arrDateTime[2]),
+                int(arrDateTime[3]),
+                int(arrDateTime[4]),
+                int(arrDateTime[5]),
+                int(arrDateTime[6]),
+                0))
 
     #read config file and set parameters
     readJSON()
 
     #enable interrupt for GPIO
-    enableInterruptGPIO()
+    enableInterruptRTC( burstTime * 1000 )
+    enableInterruptPIR()
 
     #enter low power mode
-    enterLowPowerMode()
+    print("Entering low power mode")
+    #enterLowPowerMode()
 
     #this while loop just has the system wait so the
     #program does not terminate while it waits for the
     #interrupt to occur from the IR sensor
     while(1):
-        sleep(1.00)
+        #print("I am alive!")
+        i = 1
