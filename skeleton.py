@@ -1,4 +1,4 @@
-import sensor, image, time, pyb, ujson
+import sensor, image, time, pyb, ujson, uos
 from pyb import LED
 from pyb import UART
 from pyb import I2C
@@ -14,6 +14,7 @@ global arrDateTime
 global pinI2C
 global rtc
 global totalPhotoCount
+global pirFlag
 #Configuration variables set to default values
 global burstCount
 global burstTime
@@ -100,11 +101,8 @@ def initUART():
 ##################################################
 def initI2C():
     global pinI2C
-
     #2 wire I2C communication, SCL = P4, SDA = P5
     pinI2C = I2C(2, I2C.MASTER, baudrate=100000)
-
-    return
 
 
 ##################################################
@@ -169,6 +167,7 @@ def writeRTC():
 ##################################################
 def readRTC():
     global strDateTime
+    global arrDateTime
     strDateTime = ""
 
     for i in range (0,7):
@@ -203,6 +202,7 @@ def readTime():
 ##################################################
 def readRFID():
     global uartObject
+    uartObject.write("RAT\r")
     return uartObject.read(60)
 
 
@@ -214,6 +214,7 @@ def readRFID():
 #returns 0 if it set it to low
 ##################################################
 def powerToggleRFID():
+    global pinPowerSwitch
     if pinPowerSwitch.value() == 1:
         pinPowerSwitch.low()
         return 0
@@ -246,10 +247,11 @@ def takePhoto(filename):
 #returns true upon file edit success
 ##################################################
 def addRowToCSV(dateTime, tagID, photoCount):
-    fields=[dateTime, tagID, photoCount]
-    with open('timestamps.csv', 'a') as f:
-        writer = csv.writer(f)
-        writer.writerow(fields)
+    #expect datetime to be a string list
+    dateTime = str(dateTime).replace(",", "_")
+
+    with open('timestamps.csv', 'a') as timeFile:
+        timeFile.write(dateTime + "," + str(tagID) + "," + str(photoCount) + "\n")
 
     return True
 
@@ -258,12 +260,14 @@ def addRowToCSV(dateTime, tagID, photoCount):
 #this function enables the PIR interrupt
 ##################################################
 def enableInterruptPIR():
+    global pinPIR
     pinPIR.enable()
 
 ##################################################
 #this function disables the PIR interrupt
 ##################################################
 def disableInterruptPIR():
+    global pinPIR
     pinPIR.disable()
 
 ##################################################
@@ -287,6 +291,7 @@ def disableInterruptTimer():
 #param wakeTime milliseconds to trigger interrupt
 ##################################################
 def enableInterruptRTC( wakeTime ):
+    global rtc
     rtc.wakeup(wakeTime, handleRTC)
 
 
@@ -330,59 +335,31 @@ def readJSON():
 #this function handles the RTC interrupt
 #it loops and stuff yay!
 ##################################################
-def handleRTC():
-    photoName = "/Photos/" + timestamp + "/" + timestamp + "_" + photoNum+1
+def handleRTC(line):
+    print("inside rtc handler")
+    global totalPhotoCount
+    global photoNum
+
+    list_timestamp = str(list(timestamp))
+    new_dir = "Photos/" + list_timestamp
+
+    try:
+        uos.stat(new_dir)
+    except OSError:
+        uos.mkdir(new_dir)
+
+    photoName = new_dir + "/" + list_timestamp + "_" + str(totalPhotoCount)
     takePhoto(photoName)
     totalPhotoCount += 1
+
 
 ##################################################
 #this function handles the PIR interrupt
 #it loops and stuff yay!
 ##################################################
-def handlePIR():
-    print("IM SO TRIGGERED")
-    global totalPhotoCount
-    readAgain = True
-    tagID = 0
-    num_loops = 0
-    photoNum = 0
-
-    disableInterruptPIR()
-
-    timestamp = rtc.datetime()
-
-    initCameraSensor()
-    takePhoto("/Photos/" + timestamp + "/" + timestamp + "_" + 0)
-
-    #we have read the tag, don't care if it didn't work
-    #start taking photos, we can read later
-    enableInterruptRTC(burstTime*1000)
-
-    #spend the first 3 seconds reading
-    while(readAgain and num_loops < 30):
-        tagID = readRFID()
-        if tagID == "1?":
-            readAgain = True
-        else:
-            readAgain = False
-        sleep(0.1)
-        num_loops += 1
-
-    #TODO come back to this. instead of doing a no-op
-    #TODO in the while loop, optimize the power
-    #TODO consumption of tag reading and read the tag
-    #TODO as we wait for the photocount to be reached
-    while totalPhotoCount < photoCount:
-        pass
-
-    #add the data we collected
-    addRowToCSV(timestamp, tagID, totalPhotoCount)
-
-    #cleanup and get ready to go back to low power mode
-    disableInterruptRTC()
-    enableInterruptPIR()
-    enterLowPowerMode()
-    return
+def handlePIR(line):
+    global pirFlag
+    pirFlag = True
 
 
 if __name__ == "__main__":
@@ -429,7 +406,6 @@ if __name__ == "__main__":
     readJSON()
 
     #enable interrupt for GPIO
-    enableInterruptRTC( burstTime * 1000 )
     enableInterruptPIR()
 
     #enter low power mode
@@ -439,6 +415,66 @@ if __name__ == "__main__":
     #this while loop just has the system wait so the
     #program does not terminate while it waits for the
     #interrupt to occur from the IR sensor
+    pirFlag = False
     while(1):
-        #print("I am alive!")
-        i = 1
+        if pirFlag == True:
+            disableInterruptPIR()
+
+            print("IM SO TRIGGERED")
+            readAgain = True
+            tagID = 0
+            num_loops = 0
+            photoNum = 0
+
+            timestamp = readTime()
+            print(timestamp)
+
+            initCameraSensor()
+            #list_timestamp = str(list(timestamp))
+            #new_dir = "Photos/" + list_timestamp
+
+            #try:
+                #uos.stat(new_dir)
+            #except OSError:
+                #uos.mkdir(new_dir)
+
+            #takePhoto(new_dir + "/" + list_timestamp + "_" + "0")
+
+            #we have read the tag, don't care if it didn't work
+            #start taking photos, we can read later
+            powerToggleRFID()
+            enableInterruptRTC(burstTime*1000)
+
+            #spend the first 3 seconds reading
+            while(readAgain and num_loops < 10):
+                tagID = readRFID()
+                print(str(tagID))
+                if tagID == b'?1\r' or tagID == "" or tagID == None or tagID == b'\x00':
+                    readAgain = True
+                else:
+                    readAgain = False
+                sleep(10)
+                num_loops += 1
+                print("read_again: " + str(readAgain) )
+                print("num_loops: " + str(num_loops) )
+
+            powerToggleRFID()
+            print("out of the loop for checking the tags")
+            #TODO come back to this. instead of doing a no-op
+            #TODO in the while loop, optimize the power
+            #TODO consumption of tag reading and read the tag
+            #TODO as we wait for the photocount to be reached
+            while totalPhotoCount < burstCount:
+                pass
+
+            totalPhotoCount = 0
+            #add the data we collected
+            addRowToCSV(timestamp, tagID, burstCount)
+
+            #cleanup and get ready to go back to low power mode
+            disableInterruptRTC()
+            enableInterruptPIR()
+            #enterLowPowerMode()
+
+            print("leaving pir logic section")
+            pirFlag = False

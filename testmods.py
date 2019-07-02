@@ -46,14 +46,14 @@ ir_leds = pyb.LED(4)
 ir_leds.on()
 #print(i2c.is_ready(0x68))
 #test=BCD()
-#p=pyb.Pin("P3", pyb.Pin.OUT_PP)
-p=pyb.Pin("P3", pyb.Pin.IN, pyb.Pin.PULL_DOWN)
-
+p=pyb.Pin("P6", pyb.Pin.OUT_PP)
+#p=pyb.Pin("P3", pyb.Pin.IN, pyb.Pin.PULL_DOWN)
+p.high()
 
 while(True):
-#    uart.write("RAT\r")
+    uart.write("RAT\r")
 #    pyb.delay(1000)
-#    print(uart.read(60))
+    print(uart.read(60))
 #    pyb.delay(1000)
 #    pyb.delay(5000)
 #    x=(i2c.mem_read(1, 0x68, 0))
@@ -87,6 +87,6 @@ while(True):
 #    p.high()
 #    pyb.delay(5000)
 #    p.low()
-    print(p.value())
-    pyb.delay(1000)
+    #print(p.value())
+    #pyb.delay(1000)
 
