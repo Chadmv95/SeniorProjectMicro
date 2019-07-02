@@ -168,6 +168,7 @@ def writeRTC():
 #global variable
 ##################################################
 def readRTC():
+    global strDateTime
     strDateTime = ""
 
     for i in range (0,7):
@@ -188,6 +189,7 @@ def readRTC():
 #actual board and returns a string for the time
 ##################################################
 def readTime():
+    global rtc
     return rtc.datetime()
 
 
@@ -200,6 +202,7 @@ def readTime():
 #returns a string with the tag id or a null string
 ##################################################
 def readRFID():
+    global uartObject
     return uartObject.read(60)
 
 
