@@ -172,15 +172,14 @@ def readRTC():
 
     for i in range (0,7):
         #read the full data from RTC address
-        readFirst = (pinI2C.mem_read(1, 0x68, 0))
+        readFirst = (pinI2C.mem_read(1, 0x68, (6-i)))
 
         #parse the ones and tens place of the data
         readParse = (ord(readFirst) & 0x0F)
-        arrDateTime[6-i] = "" + str(readParse) + str(bcdDigits(readFirst))
+        arrDateTime[i] = ""  + str(bcdDigits(readFirst))+ str(readParse)
 
         # yy-MM-dd hh-mm-ss (all numbers)
         strDateTime += ("" + str(arrDateTime[6-i]) )
-
 
 ##################################################
 #TODO figure out the format of the return string
@@ -189,7 +188,15 @@ def readRTC():
 ##################################################
 def readTime():
     global rtc
-    return rtc.datetime()
+    unCleanTime = rtc.datetime()
+    cleanTime = [0,0,0,0,0,0]
+
+    for i in range (0,6):
+        if i<3:
+            cleanTime[i] = unCleanTime[i]
+        else:
+            cleanTime[i] = unCleanTime[i+1]
+    return cleanTime
 
 
 ##################################################
@@ -249,7 +256,6 @@ def takePhoto(filename):
 def addRowToCSV(dateTime, tagID, photoCount):
     #expect datetime to be a string list
     dateTime = str(dateTime).replace(",", "_")
-
     with open('timestamps.csv', 'a') as timeFile:
         timeFile.write(dateTime + "," + str(tagID) + "," + str(photoCount) + "\n")
 
@@ -341,6 +347,7 @@ def handleRTC(line):
     global photoNum
 
     list_timestamp = str(list(timestamp))
+    list_timestamp = str(list_timestamp).replace(",", "_")
     new_dir = "Photos/" + list_timestamp
 
     try:
@@ -393,7 +400,7 @@ if __name__ == "__main__":
     #read the time from the timer and store it on the micro
     #TODO verify the date/time params to datetime function
     readRTC()
-    rtc.datetime((int(arrDateTime[0]),
+    rtc.datetime((int("20"+arrDateTime[0]),
                 int(arrDateTime[1]),
                 int(arrDateTime[2]),
                 int(arrDateTime[3]),
@@ -401,7 +408,6 @@ if __name__ == "__main__":
                 int(arrDateTime[5]),
                 int(arrDateTime[6]),
                 0))
-
     #read config file and set parameters
     readJSON()
 
@@ -425,10 +431,8 @@ if __name__ == "__main__":
             tagID = 0
             num_loops = 0
             photoNum = 0
-
             timestamp = readTime()
             print(timestamp)
-
             initCameraSensor()
             #list_timestamp = str(list(timestamp))
             #new_dir = "Photos/" + list_timestamp
@@ -443,7 +447,7 @@ if __name__ == "__main__":
             #we have read the tag, don't care if it didn't work
             #start taking photos, we can read later
             powerToggleRFID()
-            enableInterruptRTC(burstTime*1000)
+
 
             #spend the first 3 seconds reading
             while(readAgain and num_loops < 10):
@@ -457,7 +461,7 @@ if __name__ == "__main__":
                 num_loops += 1
                 print("read_again: " + str(readAgain) )
                 print("num_loops: " + str(num_loops) )
-
+            enableInterruptRTC(burstTime*1000)
             powerToggleRFID()
             print("out of the loop for checking the tags")
             #TODO come back to this. instead of doing a no-op
