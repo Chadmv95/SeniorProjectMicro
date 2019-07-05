@@ -238,7 +238,9 @@ def powerToggleRFID():
 #returns void
 ##################################################
 def takePhoto(filename):
+    led = pyb.LED(3)
     sensor.snapshot().save(filename)
+    led.toggle()
 
 
 ##################################################
@@ -425,14 +427,13 @@ if __name__ == "__main__":
     while(1):
         if pirFlag == True:
             disableInterruptPIR()
-
             print("IM SO TRIGGERED")
             readAgain = True
-            tagID = 0
+            tempTagID = 0
+            tagID = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
             num_loops = 0
             photoNum = 0
             timestamp = readTime()
-            print(timestamp)
             initCameraSensor()
             #list_timestamp = str(list(timestamp))
             #new_dir = "Photos/" + list_timestamp
@@ -451,9 +452,9 @@ if __name__ == "__main__":
 
             #spend the first 3 seconds reading
             while(readAgain and num_loops < 10):
-                tagID = readRFID()
-                print(str(tagID))
-                if tagID == b'?1\r' or tagID == "" or tagID == None or tagID == b'\x00':
+                TempTagID = readRFID()
+
+                if TempTagID == b'?1\r' or TempTagID == "" or TempTagID == None or TempTagID == b'\x00':
                     readAgain = True
                 else:
                     readAgain = False
@@ -468,6 +469,19 @@ if __name__ == "__main__":
             #TODO in the while loop, optimize the power
             #TODO consumption of tag reading and read the tag
             #TODO as we wait for the photocount to be reached
+
+            print(len(TempTagID))
+            print(str(TempTagID))
+            if len(TempTagID) == 18:
+                for i in range (0,16):
+                    tagID[i] = chr(TempTagID[i+1])
+            elif len(TempTagID) == 20:
+                for i in range (0,16):
+                    tagID[i] = chr(TempTagID[i+3])
+            else:
+                    tagID = chr(TempTagID)
+            tagID = "".join(tagID)
+            print(str(tagID))
             while totalPhotoCount < burstCount:
                 pass
 
