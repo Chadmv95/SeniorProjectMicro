@@ -414,11 +414,12 @@ if __name__ == "__main__":
     readJSON()
 
     #enable interrupt for GPIO
+    #pyb.delay(30000)
     enableInterruptPIR()
 
     #enter low power mode
     print("Entering low power mode")
-    #enterLowPowerMode()
+    enterLowPowerMode()
 
     #this while loop just has the system wait so the
     #program does not terminate while it waits for the
@@ -460,18 +461,18 @@ if __name__ == "__main__":
                     readAgain = False
                 sleep(10)
                 num_loops += 1
-                print("read_again: " + str(readAgain) )
-                print("num_loops: " + str(num_loops) )
+                #print("read_again: " + str(readAgain) )
+                #print("num_loops: " + str(num_loops) )
             enableInterruptRTC(burstTime*1000)
             powerToggleRFID()
-            print("out of the loop for checking the tags")
+            #print("out of the loop for checking the tags")
             #TODO come back to this. instead of doing a no-op
             #TODO in the while loop, optimize the power
             #TODO consumption of tag reading and read the tag
             #TODO as we wait for the photocount to be reached
 
-            print(len(TempTagID))
-            print(str(TempTagID))
+            #print(len(TempTagID))
+            #print(str(TempTagID))
             if len(TempTagID) == 18:
                 for i in range (0,16):
                     tagID[i] = chr(TempTagID[i+1])
@@ -479,9 +480,9 @@ if __name__ == "__main__":
                 for i in range (0,16):
                     tagID[i] = chr(TempTagID[i+3])
             else:
-                    tagID = chr(TempTagID)
+                    tagID = "NoTag"
             tagID = "".join(tagID)
-            print(str(tagID))
+            #print(str(tagID))
             while totalPhotoCount < burstCount:
                 pass
 
@@ -492,7 +493,7 @@ if __name__ == "__main__":
             #cleanup and get ready to go back to low power mode
             disableInterruptRTC()
             enableInterruptPIR()
-            #enterLowPowerMode()
+            enterLowPowerMode()
 
-            print("leaving pir logic section")
+            #print("leaving pir logic section")
             pirFlag = False
