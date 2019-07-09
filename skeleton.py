@@ -58,10 +58,7 @@ def initGPIO():
     global pinPIR
     global pinPowerSwitch
 
-    pinPIR = pyb.ExtInt("P3",
-                        pyb.ExtInt.IRQ_RISING,
-                        pyb.Pin.PULL_DOWN,
-                        callback=handlePIR)
+    pinPIR = pyb.ExtInt("P3", pyb.ExtInt.IRQ_RISING, pyb.Pin.PULL_DOWN, callback=handlePIR)
     pinPowerSwitch = pyb.Pin("P6", pyb.Pin.OUT_PP)
 
 
@@ -373,8 +370,6 @@ if __name__ == "__main__":
     initCameraSensor()
     initGPIO()
     initI2C()
-    initInterruptTimer()
-    initTimers()
     initUART()
 
     #read the time from the timer and store it on the micro
