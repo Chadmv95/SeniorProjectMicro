@@ -52,23 +52,22 @@ p.high()
 while(True):
 
 
-    strDateTime = ""
-    arrDateTime = [8]*7
-    for i in range (0,7):
-        if i != 3:
-            #read the full data from RTC address
-            readFirst = (i2c.mem_read(1, 0x68, (6-i)))
-            #parse the ones and tens place of the data
-            readParse = (ord(readFirst) & 0x0F)
-            arrDateTime[6-i] = ""  + str(bcdDigits(readFirst))+ str(readParse)
-            # yy-MM-dd hh-mm-ss (all numbers)
-            strDateTime += ("" + str(arrDateTime[6-i]) )
-    print(strDateTime)
-    pyb.delay(3000)
+    #strDateTime = ""
+    #arrDateTime = [8]*7
+    #for i in range (0,7):
+        #if i != 3:
+            ##read the full data from RTC address
+            #readFirst = (i2c.mem_read(1, 0x68, (6-i)))
+            ##parse the ones and tens place of the data
+            #readParse = (ord(readFirst) & 0x0F)
+            #arrDateTime[6-i] = ""  + str(bcdDigits(readFirst))+ str(readParse)
+            ## yy-MM-dd hh-mm-ss (all numbers)
+            #strDateTime += ("" + str(arrDateTime[6-i]) )
+    #print(strDateTime)
+    #pyb.delay(3000)
 
-    #uart.write("RAT\r")
-#    pyb.delay(1000)
-    #print(uart.read(60))
+    uart.write("RAT\r")
+    print(uart.read(60))
 #    pyb.delay(1000)
 #    pyb.delay(5000)
     #x=(i2c.mem_read(1, 0x68, 0))
