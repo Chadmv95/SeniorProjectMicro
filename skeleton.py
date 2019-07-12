@@ -179,12 +179,8 @@ def readTime():
 ##################################################
 def readRFID():
     global uartObject
-    led = pyb.LED(2)
-    led.off()
-    led.toggle()
     uartObject.write("RAT\r")
     read = uartObject.read(60)
-    led.toggle()
     return read
 
 
@@ -211,9 +207,7 @@ def powerToggleRFID():
 #returns void
 ##################################################
 def takePhoto(filename):
-    led = pyb.LED(3)
     sensor.snapshot().save(filename)
-    led.toggle()
 
 
 ##################################################
@@ -391,6 +385,11 @@ if __name__ == "__main__":
     #enter low power mode
     timerFlag = True
     pirFlag = False
+    green_led = pyb.LED(2)
+    green_led.on()
+    pyb.delay(50000)
+    green_led.off()
+
     enterLowPowerMode()
 
     #this while loop just has the system wait so the
@@ -449,11 +448,16 @@ if __name__ == "__main__":
                     elif len(TempTagID) == 20:
                         for i in range (0,16):
                             tagID[i] = chr(TempTagID[i+3])
+                    elif len(TempTagID) > 4:
+                        for i in range (0,16):
+                            tagID[i] = chr(TempTagID[i])
                     else:
                             tagID = "NoTag"
                     tagID = "".join(tagID)
                 else:
                     tagID = "RFID Module Error"
+                #print(tagID)
+                #print(TempTagID)
                 while totalPhotoCount < burstCount:
                     pass
 
@@ -468,6 +472,13 @@ if __name__ == "__main__":
                 #prepare the powersavertimeout timer
                 enableInterruptTimer(powerSaverTimeout*1000)
                 timerFlag = False
-
+                blue_led = pyb.LED(3)
+                blue_led.on()
+                pyb.delay(1000)
+                blue_led.off()
+                #print("testing")
+                TempTagID=b'x00'
+                tagID = b'x00'
+                readRFID()
                 enterLowPowerMode()
 
