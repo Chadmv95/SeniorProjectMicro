@@ -207,8 +207,10 @@ def powerToggleRFID():
 #returns void
 ##################################################
 def takePhoto(filename):
+    ir_led = pyb.LED(4)
+    ir_led.on()
     sensor.snapshot().save(filename)
-
+    ir_led.off()
 
 ##################################################
 #this function adds a row to the CSV file based on
@@ -390,6 +392,17 @@ if __name__ == "__main__":
     pyb.delay(50000)
     green_led.off()
 
+    try:
+        uos.stat("Photos")
+    except OSError:
+        uos.mkdir("Photos")
+    try:
+        uos.stat("timestamps.csv")
+    except OSError:
+        timeFile = open('timestamps.csv','w')
+        #timeFile.write('')
+        timeFile.close()
+
     enterLowPowerMode()
 
     #this while loop just has the system wait so the
@@ -397,12 +410,14 @@ if __name__ == "__main__":
     #interrupt to occur from the IR sensor
 
     while(1):
+        #print("test1")
         if timerFlag == True:
             #allow the PIR to be triggered again
             enableInterruptPIR()
-
+            #print("test2")
             #check for trigger
             if pirFlag == True:
+                #print("triggered")
                 disableInterruptPIR()
                 readAgain = True
                 tempTagID = 0
